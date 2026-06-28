@@ -1,12 +1,20 @@
 """
 Portfolio Website — Flask Backend
-Connects to MongoDB for dynamic content management.
-Falls back to seed data if MongoDB is unavailable.
+Connects to Firebase Firestore for dynamic content management.
+Falls back to seed data if Firebase is unavailable.
 """
 
 import os
 import re
 import html
+import json
+try:
+    import firebase_admin
+    from firebase_admin import credentials
+    from firebase_admin import firestore
+    HAS_FIREBASE = True
+except ImportError:
+    HAS_FIREBASE = False
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
@@ -17,24 +25,27 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "default-secret-key")
 
-# Secure CORS configuration (origins can be restricted in production via environment variables)
+# Secure CORS configuration
 cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
-# ── MongoDB Connection ──────────────────────────────────────────────
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/portfolio")
+# ── Firebase Connection ─────────────────────────────────────────────
 db = None
+firebase_creds = os.getenv("FIREBASE_CREDENTIALS")
 
-try:
-    from pymongo import MongoClient
-    client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=3000)
-    client.server_info()  # Force connection check
-    db = client.get_database()
-    print("[OK] Connected to MongoDB")
-except Exception as e:
-    print(f"[WARN] MongoDB not available ({e}). Using fallback data.")
-    db = None
-
+if HAS_FIREBASE and firebase_creds:
+    try:
+        cred_dict = json.loads(firebase_creds)
+        cred = credentials.Certificate(cred_dict)
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        print("[OK] Connected to Firebase Firestore")
+    except Exception as e:
+        print(f"[WARN] Firebase not available ({e}). Using fallback data.")
+        db = None
+else:
+    print("[WARN] FIREBASE_CREDENTIALS not found or SDK not installed. Using fallback data.")
 
 # ── Fallback Data ───────────────────────────────────────────────────
 FALLBACK_PROFILE = {
@@ -166,10 +177,11 @@ def sanitize_html(text):
     return html.escape(text.strip())
 
 def get_data(collection_name, fallback):
-    """Fetch data from MongoDB or use fallback."""
+    """Fetch data from Firebase Firestore or use fallback."""
     if db is not None:
         try:
-            data = list(db[collection_name].find({}, {"_id": 0}))
+            docs = db.collection(collection_name).stream()
+            data = [doc.to_dict() for doc in docs]
             if data:
                 return data if isinstance(fallback, list) else data[0]
         except Exception:
@@ -178,7 +190,7 @@ def get_data(collection_name, fallback):
 
 
 def seed_database():
-    """Seed MongoDB with fallback data if collections are empty."""
+    """Seed Firebase with fallback data if collections are empty."""
     if db is None:
         return
 
@@ -191,14 +203,20 @@ def seed_database():
     }
 
     for name, data in collections.items():
-        if db[name].count_documents({}) == 0:
-            if isinstance(data, list):
-                db[name].insert_many(data)
-            else:
-                db[name].insert_one(data)
-            print(f"  [SEED] Seeded '{name}' collection")
+        try:
+            # Check if collection is empty
+            if not list(db.collection(name).limit(1).stream()):
+                if isinstance(data, list):
+                    for item in data:
+                        db.collection(name).add(item)
+                else:
+                    db.collection(name).document('singleton').set(data)
+                print(f"  [SEED] Seeded '{name}' collection in Firebase")
+        except Exception as e:
+            print(f"[WARN] Failed to seed {name}: {e}")
 
-
+# Call seed on startup for serverless
+seed_database()
 # ── Routes ──────────────────────────────────────────────────────────
 @app.route("/")
 def home():
@@ -252,12 +270,11 @@ def submit_contact():
 
     if db is not None:
         try:
-            db.contacts.insert_one(contact)
+            db.collection("contacts").add(contact)
         except Exception as e:
             print(f"Failed to save contact: {e}")
 
     return jsonify({"success": True, "message": "Thank you! Your message has been sent."})
-
 
 @app.route("/api/projects", methods=["GET"])
 def get_projects():
