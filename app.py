@@ -35,7 +35,11 @@ firebase_creds = os.getenv("FIREBASE_CREDENTIALS")
 
 if HAS_FIREBASE and firebase_creds:
     try:
-        cred_dict = json.loads(firebase_creds)
+        # Vercel sometimes double-escapes newlines in JSON strings
+        cred_dict = json.loads(firebase_creds, strict=False)
+        if "private_key" in cred_dict:
+            cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+            
         cred = credentials.Certificate(cred_dict)
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
