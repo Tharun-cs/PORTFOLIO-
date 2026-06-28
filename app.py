@@ -1,19 +1,12 @@
 """
 Portfolio Website — Flask Backend
-Connects to PostgreSQL for dynamic content management.
-Falls back to seed data if PostgreSQL is unavailable.
+Connects to MongoDB for dynamic content management.
+Falls back to seed data if MongoDB is unavailable.
 """
 
 import os
 import re
 import html
-import json
-try:
-    import psycopg2
-    from psycopg2.extras import Json
-    HAS_POSTGRES = True
-except ImportError:
-    HAS_POSTGRES = False
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
@@ -24,56 +17,24 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "default-secret-key")
 
-# Secure CORS configuration
+# Secure CORS configuration (origins can be restricted in production via environment variables)
 cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
-# ── PostgreSQL Connection ───────────────────────────────────────────
-# Use POSTGRES_URL which is automatically provided by Vercel Postgres
-DATABASE_URL = os.getenv("POSTGRES_URL")
+# ── MongoDB Connection ──────────────────────────────────────────────
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/portfolio")
+db = None
 
-def get_db_connection():
-    if not DATABASE_URL or not HAS_POSTGRES:
-        return None
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.autocommit = True
-        return conn
-    except Exception as e:
-        print(f"[WARN] Postgres not available ({e}). Using fallback data.")
-        return None
+try:
+    from pymongo import MongoClient
+    client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=3000)
+    client.server_info()  # Force connection check
+    db = client.get_database()
+    print("[OK] Connected to MongoDB")
+except Exception as e:
+    print(f"[WARN] MongoDB not available ({e}). Using fallback data.")
+    db = None
 
-def init_db():
-    conn = get_db_connection()
-    if not conn:
-        return
-    try:
-        with conn.cursor() as cur:
-            # Table for JSONB collections
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS portfolio_data (
-                    collection_name VARCHAR(50) PRIMARY KEY,
-                    data JSONB
-                );
-            """)
-            # Table for contact messages
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS contacts (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(255),
-                    email VARCHAR(255),
-                    subject VARCHAR(255),
-                    message TEXT,
-                    timestamp TIMESTAMP
-                );
-            """)
-    except Exception as e:
-        print(f"[ERROR] Failed to init DB: {e}")
-    finally:
-        conn.close()
-
-# Initialize DB on startup
-init_db()
 
 # ── Fallback Data ───────────────────────────────────────────────────
 FALLBACK_PROFILE = {
@@ -205,26 +166,20 @@ def sanitize_html(text):
     return html.escape(text.strip())
 
 def get_data(collection_name, fallback):
-    """Fetch data from Postgres JSONB or use fallback."""
-    conn = get_db_connection()
-    if conn:
+    """Fetch data from MongoDB or use fallback."""
+    if db is not None:
         try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT data FROM portfolio_data WHERE collection_name = %s;", (collection_name,))
-                result = cur.fetchone()
-                if result and result[0]:
-                    return result[0]
+            data = list(db[collection_name].find({}, {"_id": 0}))
+            if data:
+                return data if isinstance(fallback, list) else data[0]
         except Exception:
             pass
-        finally:
-            conn.close()
     return fallback
 
 
 def seed_database():
-    """Seed Postgres with fallback data if tables are empty."""
-    conn = get_db_connection()
-    if not conn:
+    """Seed MongoDB with fallback data if collections are empty."""
+    if db is None:
         return
 
     collections = {
@@ -235,24 +190,14 @@ def seed_database():
         "social_links": FALLBACK_SOCIAL,
     }
 
-    try:
-        with conn.cursor() as cur:
-            for name, data in collections.items():
-                cur.execute("SELECT 1 FROM portfolio_data WHERE collection_name = %s;", (name,))
-                if not cur.fetchone():
-                    # Insert data as JSONB
-                    cur.execute(
-                        "INSERT INTO portfolio_data (collection_name, data) VALUES (%s, %s);",
-                        (name, Json(data))
-                    )
-                    print(f"  [SEED] Seeded '{name}' collection to Postgres")
-    except Exception as e:
-        print(f"[ERROR] Seeding failed: {e}")
-    finally:
-        conn.close()
+    for name, data in collections.items():
+        if db[name].count_documents({}) == 0:
+            if isinstance(data, list):
+                db[name].insert_many(data)
+            else:
+                db[name].insert_one(data)
+            print(f"  [SEED] Seeded '{name}' collection")
 
-# Automatically seed when app loads
-seed_database()
 
 # ── Routes ──────────────────────────────────────────────────────────
 @app.route("/")
@@ -305,20 +250,14 @@ def submit_contact():
         "timestamp": datetime.utcnow().isoformat(),
     }
 
-    conn = get_db_connection()
-    if conn:
+    if db is not None:
         try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO contacts (name, email, subject, message, timestamp) VALUES (%s, %s, %s, %s, %s);",
-                    (name, email, subject, message, datetime.utcnow())
-                )
+            db.contacts.insert_one(contact)
         except Exception as e:
             print(f"Failed to save contact: {e}")
-        finally:
-            conn.close()
 
     return jsonify({"success": True, "message": "Thank you! Your message has been sent."})
+
 
 @app.route("/api/projects", methods=["GET"])
 def get_projects():
