@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ profile.name }}'s Portfolio — Full Stack Developer specializing in modern web applications.">
+    <title>{{ profile.name }} | Portfolio</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- ═══════════════════ PARTICLES CANVAS ═══════════════════ -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#home" class="nav-logo">PORTFOLIO</a>
+            <div class="nav-menu" id="nav-menu">
+                <a href="#home" class="nav-link active" data-section="home">Home</a>
+                <a href="#about" class="nav-link" data-section="about">About</a>
+                <a href="#skills" class="nav-link" data-section="skills">Skills</a>
+                <a href="#education" class="nav-link" data-section="education">Education</a>
+                <a href="#work" class="nav-link" data-section="work">Work</a>
+                <a href="#contact" class="nav-link" data-section="contact">Contact</a>
+            </div>
+            <div class="nav-toggle" id="nav-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════ HERO SECTION ═══════════════════ -->
+    <section class="hero" id="home">
+        <div class="hero-container">
+            <div class="hero-content">
+                <p class="hero-greeting">{{ profile.greeting }}</p>
+                <h1 class="hero-title">I'm <span class="highlight">{{ profile.name }}</span></h1>
+                <p class="hero-subtitle">I Am Into <span class="typewriter" id="typewriter"></span><span class="cursor">|</span></p>
+                <a href="#about" class="btn btn-primary">About Me</a>
+                <div class="hero-socials">
+                    {% for link in social_links %}
+                    <a href="{{ link.url }}" class="social-icon" target="_blank" rel="noopener noreferrer" aria-label="{{ link.platform }}">
+                        <i class="fab fa-{{ link.icon }}"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="hero-image-circle">
+                    <img src="{{ url_for('static', filename='images/profile.png') }}" alt="{{ profile.name }}" class="hero-photo">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ ABOUT SECTION ═══════════════════ -->
+    <section class="section about" id="about">
+        <div class="container">
+            <h2 class="section-title">About <span class="highlight">Me</span></h2>
+            <div class="section-line"></div>
+            <div class="about-grid">
+                <div class="about-image">
+                    <div class="about-image-wrapper">
+                        <img src="{{ url_for('static', filename='images/profile.png') }}" alt="{{ profile.name }}">
+                    </div>
+                </div>
+                <div class="about-content">
+                    <h3 class="about-heading">Full Stack Developer</h3>
+                    <p class="about-text">{{ profile.bio }}</p>
+                    <p class="about-text">{{ profile.bio_short }}</p>
+                    <div class="about-stats">
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="2">0</span><span class="stat-plus">+</span>
+                            <span class="stat-label">Years Experience</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="5">0</span><span class="stat-plus">+</span>
+                            <span class="stat-label">Projects Done</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="10">0</span><span class="stat-plus">+</span>
+                            <span class="stat-label">Happy Clients</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('static', filename='docs/Tharun_CV.pdf') }}" class="btn btn-primary" download="Tharun_CV.pdf">
+                        <i class="fas fa-download"></i> Download CV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ SKILLS SECTION ═══════════════════ -->
+    <section class="section skills" id="skills">
+        <div class="container">
+            <h2 class="section-title">My <span class="highlight">Skills</span></h2>
+            <div class="section-line"></div>
+            <div class="skills-grid">
+                {% for category, items in skills_grouped.items() %}
+                <div class="skill-category">
+                    <h3 class="skill-category-title">
+                        {% if category == 'Frontend' %}
+                        <i class="fas fa-palette"></i>
+                        {% elif category == 'Programming' %}
+                        <i class="fas fa-tools"></i>
+                        {% elif category == 'AI & ML' %}
+                        <i class="fas fa-brain"></i>
+                        {% elif category == 'Strengths' %}
+                        <i class="fas fa-tools"></i>
+                        {% else %}
+                        <i class="fas fa-tools"></i>
+                        {% endif %}
+                        {{ category }}
+                    </h3>
+                    <div class="skill-list">
+                        {% for skill in items %}
+                        <div class="skill-item">
+                            <div class="skill-info">
+                                <span class="skill-name">{{ skill.name }}</span>
+                                <span class="skill-percent">{{ skill.percentage }}%</span>
+                            </div>
+                            <div class="skill-bar">
+                                <div class="skill-fill" data-width="{{ skill.percentage }}"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ EDUCATION SECTION ═══════════════════ -->
+    <section class="section education" id="education">
+        <div class="container">
+            <h2 class="section-title">My <span class="highlight">Education</span></h2>
+            <p class="section-sub">Academic journey & certifications</p>
+            <div class="section-line"></div>
+            <div class="timeline">
+                {% for edu in education %}
+                <div class="timeline-item {{ 'left' if loop.index is odd else 'right' }}">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-card">
+                        <span class="timeline-year">
+                            <i class="fas fa-calendar-alt"></i> {{ edu.year }}
+                        </span>
+                        <h3 class="timeline-title">{{ edu.degree }}</h3>
+                        <h4 class="timeline-subtitle">
+                            <i class="fas fa-university"></i> {{ edu.institution }}
+                        </h4>
+                        <p class="timeline-desc">{{ edu.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ WORK SECTION ═══════════════════ -->
+    <section class="section work" id="work">
+        <div class="container">
+            <h2 class="section-title">My <span class="highlight">Work</span></h2>
+            <p class="section-sub">Projects I've built and explored</p>
+            <div class="section-line"></div>
+            <div class="work-filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="AI &amp; ML">AI &amp; ML</button>
+                <button class="filter-btn" data-filter="Frontend">Frontend</button>
+                <button class="filter-btn" data-filter="Backend">Backend</button>
+            </div>
+            <div class="work-grid" id="work-grid">
+                {% for project in projects %}
+                <div class="work-card" data-category="{{ project.category }}">
+                    <div class="work-card-image">
+                        <div class="work-card-gradient" style="--gradient-hue: {{ loop.index * 45 }}"></div>
+                        <div class="work-card-icon">
+                            {% if project.category == 'Frontend' %}
+                            <i class="fas fa-laptop-code"></i>
+                            {% elif project.category == 'Backend' %}
+                            <i class="fas fa-database"></i>
+                            {% else %}
+                            <i class="fas fa-layer-group"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="work-card-content">
+                        <h3 class="work-card-title">{{ project.title }}</h3>
+                        <p class="work-card-desc">{{ project.description }}</p>
+                        <div class="work-card-tags">
+                            {% for tech in project.tech_stack %}
+                            <span class="tag">{{ tech }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="work-card-links">
+                            <a href="{{ project.live_url }}" class="work-link" target="_blank">
+                                <i class="fas fa-external-link-alt"></i> Live Demo
+                            </a>
+                            <a href="{{ project.github_url }}" class="work-link" target="_blank">
+                                <i class="fab fa-github"></i> GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ CONTACT SECTION ═══════════════════ -->
+    <section class="section contact" id="contact">
+        <div class="container">
+            <h2 class="section-title">Contact <span class="highlight">Me</span></h2>
+            <div class="section-line"></div>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <h3 class="contact-heading">Let's work together</h3>
+                    <p class="contact-text">Feel free to reach out if you want to collaborate, have any questions, or just want to say hello!</p>
+                    <div class="contact-details">
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <h4>Email</h4>
+                                <p>{{ profile.email }}</p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div>
+                                <h4>Phone</h4>
+                                <p>{{ profile.phone }}</p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div>
+                                <h4>Location</h4>
+                                <p>{{ profile.location }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="contact-socials">
+                        {% for link in social_links %}
+                        <a href="{{ link.url }}" class="social-icon" target="_blank" rel="noopener noreferrer">
+                            <i class="fab fa-{{ link.icon }}"></i>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="contact-form-wrapper">
+                    <form class="contact-form" id="contact-form">
+                        <div class="form-group">
+                            <input type="text" name="name" id="form-name" placeholder="Your Name" required>
+                            <label for="form-name">Your Name</label>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" name="email" id="form-email" placeholder="Your Email" required>
+                            <label for="form-email">Your Email</label>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" name="subject" id="form-subject" placeholder="Subject">
+                            <label for="form-subject">Subject</label>
+                        </div>
+                        <div class="form-group">
+                            <textarea name="message" id="form-message" placeholder="Your Message" rows="5" required></textarea>
+                            <label for="form-message">Your Message</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-submit" id="form-submit">
+                            <span>Send Message</span>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                        <div class="form-status" id="form-status"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ FOOTER ═══════════════════ -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="footer-text">&copy; 2026 <span class="highlight">{{ profile.name }}</span>. All rights reserved.</p>
+                <div class="footer-socials">
+                    {% for link in social_links %}
+                    <a href="{{ link.url }}" class="social-icon-sm" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-{{ link.icon }}"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Back to Top -->
+    <button class="back-to-top" id="back-to-top" aria-label="Back to top">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <!-- Hidden data for JS -->
+    <script>
+        window.PORTFOLIO_ROLES = {{ profile.roles | tojson }};
+    </script>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/particles.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
